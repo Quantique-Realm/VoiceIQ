@@ -5,10 +5,17 @@ B2B SaaS company: NPS/CSAT surveys, support tickets, and product feedback
 consolidated into a PostgreSQL warehouse, analyzed with SQL + Python, and
 surfaced through a Power BI executive dashboard.
 
-**Status: in progress (Modules 1-6 of 10 complete).** Full README, business
-report, and dashboard land in later modules — until then, start with
+**Status: in progress (Modules 1-8 of 10 complete).** Full README, business
+report land in Module 9 — until then, start with
 [`docs/architecture.md`](docs/architecture.md) for the dataset selection,
 data lineage, and pipeline architecture.
+
+**Dashboard preview:** [`powerbi/dashboard_preview.html`](powerbi/dashboard_preview.html)
+(open locally) or the [hosted version](https://claude.ai/artifact/GDLtiLDGnVrF1rrNhksq5N)
+(private — share it from claude.ai first if linking it elsewhere). Power BI
+Desktop is Windows-only, so this is a working HTML replica of the same
+4 pages built from live warehouse data; see `docs/powerbi_spec.md` for the
+full Power BI build spec.
 
 ## What's built so far
 
@@ -20,6 +27,8 @@ data lineage, and pipeline architecture.
 | 4. SQL analytics | [`sql/03_kpis.sql`](sql/03_kpis.sql), [`sql/04_customer_experience.sql`](sql/04_customer_experience.sql) |
 | 5. Python EDA | [`notebooks/03_customer_insights.ipynb`](notebooks/03_customer_insights.ipynb) |
 | 6. Sentiment analysis | [`notebooks/02_sentiment_analysis.ipynb`](notebooks/02_sentiment_analysis.ipynb) |
+| 7. Predictive model | [`notebooks/03_customer_insights.ipynb`](notebooks/03_customer_insights.ipynb) (Module 7 section) |
+| 8. Power BI dashboard | [`docs/powerbi_spec.md`](docs/powerbi_spec.md), [`powerbi/dashboard_preview.html`](powerbi/dashboard_preview.html) |
 
 ## Tech stack
 

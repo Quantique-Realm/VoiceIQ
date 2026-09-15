@@ -1,0 +1,519 @@
+<title>VoiceIQ Dashboard</title>
+<meta name="description" content="Voice of Customer analytics for a B2B SaaS company — NPS, CSAT, support, and feedback intelligence.">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+:root{
+  --accent:#2a78d6; --accent-ink:#1c5cab;
+  --ground:#f2f5f9; --card:#ffffff;
+  --text-primary:#10151c; --text-secondary:#4b5566; --text-muted:#8994a6;
+  --border:rgba(16,21,28,0.09); --grid:#e7ebf1;
+  --good:#0ca30c; --warning:#c98500; --critical:#d03b3b;
+  --good-bg:rgba(12,163,12,0.10); --warning-bg:rgba(201,133,0,0.12); --critical-bg:rgba(208,59,59,0.10);
+  --shadow:0 1px 2px rgba(16,21,28,0.04), 0 8px 24px -12px rgba(16,21,28,0.12);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --accent:#4a95ef; --accent-ink:#8fc0ff;
+    --ground:#0c1015; --card:#141a22;
+    --text-primary:#eef1f6; --text-secondary:#b3bcca; --text-muted:#7d8698;
+    --border:rgba(255,255,255,0.09); --grid:#232b36;
+    --good:#2fbf4f; --warning:#e0a419; --critical:#e2635f;
+    --good-bg:rgba(47,191,79,0.12); --warning-bg:rgba(224,164,25,0.12); --critical-bg:rgba(226,99,95,0.12);
+    --shadow:0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -12px rgba(0,0,0,0.5);
+  }
+}
+:root[data-theme="dark"]{
+  --accent:#4a95ef; --accent-ink:#8fc0ff;
+  --ground:#0c1015; --card:#141a22;
+  --text-primary:#eef1f6; --text-secondary:#b3bcca; --text-muted:#7d8698;
+  --border:rgba(255,255,255,0.09); --grid:#232b36;
+  --good:#2fbf4f; --warning:#e0a419; --critical:#e2635f;
+  --good-bg:rgba(47,191,79,0.12); --warning-bg:rgba(224,164,25,0.12); --critical-bg:rgba(226,99,95,0.12);
+  --shadow:0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -12px rgba(0,0,0,0.5);
+}
+
+*{box-sizing:border-box;}
+body{
+  background:var(--ground); color:var(--text-primary);
+  font-family:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  display:flex; min-height:100vh;
+}
+.mono{font-family:"IBM Plex Mono",ui-monospace,monospace;}
+h1,h2,h3{text-wrap:balance; margin:0;}
+
+/* ---- shell ---- */
+.sidebar{
+  width:220px; flex:0 0 220px; padding:24px 16px; border-right:1px solid var(--border);
+  display:flex; flex-direction:column; gap:4px; position:sticky; top:0; height:100vh;
+}
+.brand{display:flex; align-items:center; gap:10px; padding:4px 10px 20px;}
+.brand-mark{
+  width:30px; height:30px; border-radius:8px; background:var(--accent);
+  display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:14px; flex:0 0 auto;
+}
+.brand-name{font-weight:600; font-size:15px; letter-spacing:-0.01em;}
+.brand-sub{font-size:10.5px; color:var(--text-muted); letter-spacing:0.04em; text-transform:uppercase;}
+nav{display:flex; flex-direction:column; gap:2px;}
+.nav-btn{
+  display:flex; align-items:center; gap:10px; padding:9px 12px; border-radius:8px; border:none; background:none;
+  color:var(--text-secondary); font:inherit; font-size:13.5px; font-weight:500; text-align:left; cursor:pointer;
+  transition:background .12s ease, color .12s ease;
+}
+.nav-btn:hover{background:var(--border); color:var(--text-primary);}
+.nav-btn[aria-current="page"]{background:var(--accent); color:#fff;}
+.nav-icon{width:16px; height:16px; flex:0 0 auto; opacity:0.9;}
+.sidebar-foot{margin-top:auto; padding:10px; font-size:11px; color:var(--text-muted); line-height:1.5;}
+
+.main{flex:1; min-width:0; padding:28px 36px 64px;}
+.page-head{display:flex; align-items:baseline; justify-content:space-between; gap:16px; margin-bottom:22px; flex-wrap:wrap;}
+.page-head h1{font-size:22px; font-weight:600; letter-spacing:-0.01em;}
+.page-head p{margin:4px 0 0; color:var(--text-secondary); font-size:13.5px;}
+.asof{font-size:11.5px; color:var(--text-muted);}
+
+/* ---- grid & cards ---- */
+.grid{display:grid; gap:16px;}
+.kpi-row{grid-template-columns:repeat(auto-fit, minmax(170px,1fr)); margin-bottom:18px;}
+.chart-row-2{grid-template-columns:2fr 1fr;}
+.chart-row-even{grid-template-columns:1fr 1fr;}
+@media (max-width:900px){.chart-row-2, .chart-row-even{grid-template-columns:1fr;}}
+
+.card{
+  background:var(--card); border:1px solid var(--border); border-radius:14px; padding:18px 20px;
+  box-shadow:var(--shadow);
+}
+.card h3{font-size:13px; font-weight:600; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:14px;}
+.card .card-note{font-size:11.5px; color:var(--text-muted); margin-top:8px; line-height:1.5;}
+
+.kpi{display:flex; flex-direction:column; gap:6px;}
+.kpi-label{font-size:11.5px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; font-weight:600;}
+.kpi-value{font-size:28px; font-weight:600; letter-spacing:-0.02em; font-family:"IBM Plex Mono",monospace;}
+.kpi-delta{font-size:12px; font-weight:500; display:flex; align-items:center; gap:4px;}
+.kpi-delta.down{color:var(--critical);} .kpi-delta.up{color:var(--good);} .kpi-delta.flat{color:var(--text-muted);}
+
+.badge{
+  display:inline-flex; align-items:center; gap:5px; padding:3px 9px; border-radius:99px;
+  font-size:11.5px; font-weight:600; white-space:nowrap;
+}
+.badge .dot{width:6px; height:6px; border-radius:50%;}
+.badge.good{background:var(--good-bg); color:var(--good);}
+.badge.warning{background:var(--warning-bg); color:var(--warning);}
+.badge.critical{background:var(--critical-bg); color:var(--critical);}
+.badge.neutral{background:var(--border); color:var(--text-secondary);}
+
+table{width:100%; border-collapse:collapse; font-size:13px;}
+th{text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:0.04em; color:var(--text-muted); font-weight:600; padding:0 10px 8px; border-bottom:1px solid var(--border);}
+td{padding:9px 10px; border-bottom:1px solid var(--border); color:var(--text-secondary);}
+td.mono, th.num{font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums;}
+tr:last-child td{border-bottom:none;}
+.table-wrap{overflow-x:auto;}
+
+svg text{fill:var(--text-secondary); font-family:"IBM Plex Sans",sans-serif;}
+.grid-line{stroke:var(--grid); stroke-width:1;}
+.axis-label{font-size:10.5px; fill:var(--text-muted);}
+.value-label{font-size:11px; font-weight:600; fill:var(--text-primary);}
+
+.tooltip{
+  position:fixed; pointer-events:none; background:var(--text-primary); color:var(--card);
+  font-size:12px; padding:6px 10px; border-radius:7px; z-index:50; opacity:0; transition:opacity .08s;
+  font-family:"IBM Plex Mono",monospace; white-space:nowrap;
+}
+
+.word-cloud{display:flex; flex-wrap:wrap; align-items:baseline; gap:9px 14px; padding:6px 2px;}
+.word-cloud span{color:var(--accent); font-weight:600; line-height:1;}
+
+.legend{display:flex; gap:16px; flex-wrap:wrap; font-size:12px; color:var(--text-secondary); margin-top:10px;}
+.legend-item{display:flex; align-items:center; gap:6px;}
+.legend-swatch{width:9px; height:9px; border-radius:2px;}
+
+[hidden]{display:none !important;}
+
+@media (max-width:760px){
+  body{flex-direction:column;}
+  .sidebar{position:relative; width:100%; height:auto; flex-direction:row; align-items:center; overflow-x:auto; padding:14px 16px; gap:8px;}
+  .brand{padding:0; margin-right:8px;}
+  .sidebar-foot{display:none;}
+  nav{flex-direction:row;}
+  .main{padding:20px 16px 48px;}
+}
+</style>
+
+<div class="sidebar">
+  <div class="brand">
+    <div class="brand-mark">V</div>
+    <div>
+      <div class="brand-name">VoiceIQ</div>
+      <div class="brand-sub">Voice of Customer</div>
+    </div>
+  </div>
+  <nav id="nav"></nav>
+  <div class="sidebar-foot">Data as of Jun 30, 2025<br>7,043 customers · 4 sources</div>
+</div>
+
+<main class="main" id="main"></main>
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+const DATA = {"kpi": {"total_customers": 7043, "churned_customers": 1869, "churn_rate_pct": 26.54, "current_nps": 15.8, "current_relationship_csat": 4.05, "avg_transactional_csat": 2.81, "open_tickets": 5700, "resolved_tickets": 2769, "avg_resolution_hours": 30.8}, "nps_trend": [{"survey_month": "2023-04-01", "responses": 1176, "nps_score": 39.0, "avg_csat": 4.26, "nps_3mo_moving_avg": 39.0, "nps_mom_change": null}, {"survey_month": "2023-05-01", "responses": 1323, "nps_score": 36.7, "avg_csat": 4.25, "nps_3mo_moving_avg": 37.9, "nps_mom_change": -2.3}, {"survey_month": "2023-06-01", "responses": 1428, "nps_score": 38.5, "avg_csat": 4.28, "nps_3mo_moving_avg": 38.1, "nps_mom_change": 1.8}, {"survey_month": "2023-07-01", "responses": 1322, "nps_score": 34.3, "avg_csat": 4.2, "nps_3mo_moving_avg": 36.5, "nps_mom_change": -4.2}, {"survey_month": "2023-08-01", "responses": 1407, "nps_score": 35.4, "avg_csat": 4.25, "nps_3mo_moving_avg": 36.1, "nps_mom_change": 1.1}, {"survey_month": "2023-09-01", "responses": 1436, "nps_score": 32.3, "avg_csat": 4.22, "nps_3mo_moving_avg": 34.0, "nps_mom_change": -3.1}, {"survey_month": "2023-10-01", "responses": 1427, "nps_score": 33.5, "avg_csat": 4.2, "nps_3mo_moving_avg": 33.7, "nps_mom_change": 1.2}, {"survey_month": "2023-11-01", "responses": 1382, "nps_score": 31.1, "avg_csat": 4.22, "nps_3mo_moving_avg": 32.3, "nps_mom_change": -2.4}, {"survey_month": "2023-12-01", "responses": 1597, "nps_score": 32.9, "avg_csat": 4.22, "nps_3mo_moving_avg": 32.5, "nps_mom_change": 1.8}, {"survey_month": "2024-01-01", "responses": 1490, "nps_score": 36.4, "avg_csat": 4.23, "nps_3mo_moving_avg": 33.5, "nps_mom_change": 3.5}, {"survey_month": "2024-02-01", "responses": 1431, "nps_score": 34.2, "avg_csat": 4.21, "nps_3mo_moving_avg": 34.5, "nps_mom_change": -2.2}, {"survey_month": "2024-03-01", "responses": 1751, "nps_score": 31.8, "avg_csat": 4.19, "nps_3mo_moving_avg": 34.1, "nps_mom_change": -2.4}, {"survey_month": "2024-04-01", "responses": 1590, "nps_score": 31.4, "avg_csat": 4.21, "nps_3mo_moving_avg": 32.5, "nps_mom_change": -0.4}, {"survey_month": "2024-05-01", "responses": 1618, "nps_score": 31.9, "avg_csat": 4.22, "nps_3mo_moving_avg": 31.7, "nps_mom_change": 0.5}, {"survey_month": "2024-06-01", "responses": 1766, "nps_score": 31.3, "avg_csat": 4.19, "nps_3mo_moving_avg": 31.5, "nps_mom_change": -0.6}, {"survey_month": "2024-07-01", "responses": 1658, "nps_score": 27.3, "avg_csat": 4.18, "nps_3mo_moving_avg": 30.2, "nps_mom_change": -4.0}, {"survey_month": "2024-08-01", "responses": 1714, "nps_score": 34.5, "avg_csat": 4.21, "nps_3mo_moving_avg": 31.0, "nps_mom_change": 7.2}, {"survey_month": "2024-09-01", "responses": 1936, "nps_score": 31.7, "avg_csat": 4.23, "nps_3mo_moving_avg": 31.2, "nps_mom_change": -2.8}, {"survey_month": "2024-10-01", "responses": 1782, "nps_score": 28.0, "avg_csat": 4.17, "nps_3mo_moving_avg": 31.4, "nps_mom_change": -3.7}, {"survey_month": "2024-11-01", "responses": 1794, "nps_score": 27.5, "avg_csat": 4.17, "nps_3mo_moving_avg": 29.1, "nps_mom_change": -0.5}, {"survey_month": "2024-12-01", "responses": 2096, "nps_score": 24.2, "avg_csat": 4.13, "nps_3mo_moving_avg": 26.6, "nps_mom_change": -3.3}, {"survey_month": "2025-01-01", "responses": 1994, "nps_score": 26.1, "avg_csat": 4.16, "nps_3mo_moving_avg": 25.9, "nps_mom_change": 1.9}, {"survey_month": "2025-02-01", "responses": 1785, "nps_score": 17.6, "avg_csat": 4.07, "nps_3mo_moving_avg": 22.6, "nps_mom_change": -8.5}, {"survey_month": "2025-03-01", "responses": 2402, "nps_score": 19.6, "avg_csat": 4.11, "nps_3mo_moving_avg": 21.1, "nps_mom_change": 2.0}, {"survey_month": "2025-04-01", "responses": 1797, "nps_score": 22.2, "avg_csat": 4.13, "nps_3mo_moving_avg": 19.8, "nps_mom_change": 2.6}, {"survey_month": "2025-05-01", "responses": 2053, "nps_score": 23.3, "avg_csat": 4.07, "nps_3mo_moving_avg": 21.7, "nps_mom_change": 1.1}, {"survey_month": "2025-06-01", "responses": 2495, "nps_score": 18.7, "avg_csat": 4.08, "nps_3mo_moving_avg": 21.4, "nps_mom_change": -4.6}], "sentiment_trend": [{"feedback_month": "2023-06-01", "feedback_count": 1123, "positive_count": 768, "negative_count": 219, "avg_sentiment_score": 0.342, "sentiment_3mo_moving_avg": 0.342, "sentiment_mom_change": null}, {"feedback_month": "2023-07-01", "feedback_count": 1154, "positive_count": 794, "negative_count": 230, "avg_sentiment_score": 0.349, "sentiment_3mo_moving_avg": 0.346, "sentiment_mom_change": 0.007}, {"feedback_month": "2023-08-01", "feedback_count": 1185, "positive_count": 841, "negative_count": 212, "avg_sentiment_score": 0.372, "sentiment_3mo_moving_avg": 0.354, "sentiment_mom_change": 0.023}, {"feedback_month": "2023-09-01", "feedback_count": 1216, "positive_count": 824, "negative_count": 252, "avg_sentiment_score": 0.323, "sentiment_3mo_moving_avg": 0.348, "sentiment_mom_change": -0.049}, {"feedback_month": "2023-10-01", "feedback_count": 1248, "positive_count": 872, "negative_count": 250, "avg_sentiment_score": 0.353, "sentiment_3mo_moving_avg": 0.349, "sentiment_mom_change": 0.03}, {"feedback_month": "2023-11-01", "feedback_count": 1279, "positive_count": 915, "negative_count": 221, "avg_sentiment_score": 0.381, "sentiment_3mo_moving_avg": 0.352, "sentiment_mom_change": 0.028}, {"feedback_month": "2023-12-01", "feedback_count": 1310, "positive_count": 911, "negative_count": 254, "avg_sentiment_score": 0.348, "sentiment_3mo_moving_avg": 0.361, "sentiment_mom_change": -0.033}, {"feedback_month": "2024-01-01", "feedback_count": 1341, "positive_count": 906, "negative_count": 281, "avg_sentiment_score": 0.333, "sentiment_3mo_moving_avg": 0.354, "sentiment_mom_change": -0.015}, {"feedback_month": "2024-02-01", "feedback_count": 1372, "positive_count": 941, "negative_count": 267, "avg_sentiment_score": 0.343, "sentiment_3mo_moving_avg": 0.341, "sentiment_mom_change": 0.01}, {"feedback_month": "2024-03-01", "feedback_count": 1404, "positive_count": 936, "negative_count": 283, "avg_sentiment_score": 0.331, "sentiment_3mo_moving_avg": 0.336, "sentiment_mom_change": -0.012}, {"feedback_month": "2024-04-01", "feedback_count": 1435, "positive_count": 994, "negative_count": 257, "avg_sentiment_score": 0.357, "sentiment_3mo_moving_avg": 0.344, "sentiment_mom_change": 0.026}, {"feedback_month": "2024-05-01", "feedback_count": 1466, "positive_count": 1007, "negative_count": 300, "avg_sentiment_score": 0.335, "sentiment_3mo_moving_avg": 0.341, "sentiment_mom_change": -0.022}, {"feedback_month": "2024-06-01", "feedback_count": 1497, "positive_count": 1018, "negative_count": 311, "avg_sentiment_score": 0.339, "sentiment_3mo_moving_avg": 0.344, "sentiment_mom_change": 0.004}, {"feedback_month": "2024-07-01", "feedback_count": 1528, "positive_count": 1055, "negative_count": 319, "avg_sentiment_score": 0.339, "sentiment_3mo_moving_avg": 0.338, "sentiment_mom_change": 0.0}, {"feedback_month": "2024-08-01", "feedback_count": 1559, "positive_count": 1039, "negative_count": 326, "avg_sentiment_score": 0.323, "sentiment_3mo_moving_avg": 0.334, "sentiment_mom_change": -0.016}, {"feedback_month": "2024-09-01", "feedback_count": 1591, "positive_count": 1082, "negative_count": 336, "avg_sentiment_score": 0.332, "sentiment_3mo_moving_avg": 0.331, "sentiment_mom_change": 0.009}, {"feedback_month": "2024-10-01", "feedback_count": 1622, "positive_count": 1086, "negative_count": 332, "avg_sentiment_score": 0.333, "sentiment_3mo_moving_avg": 0.329, "sentiment_mom_change": 0.001}, {"feedback_month": "2024-11-01", "feedback_count": 1653, "positive_count": 1116, "negative_count": 338, "avg_sentiment_score": 0.34, "sentiment_3mo_moving_avg": 0.335, "sentiment_mom_change": 0.007}, {"feedback_month": "2024-12-01", "feedback_count": 1684, "positive_count": 1128, "negative_count": 355, "avg_sentiment_score": 0.336, "sentiment_3mo_moving_avg": 0.336, "sentiment_mom_change": -0.004}, {"feedback_month": "2025-01-01", "feedback_count": 1715, "positive_count": 1129, "negative_count": 359, "avg_sentiment_score": 0.326, "sentiment_3mo_moving_avg": 0.334, "sentiment_mom_change": -0.01}, {"feedback_month": "2025-02-01", "feedback_count": 1747, "positive_count": 1187, "negative_count": 341, "avg_sentiment_score": 0.334, "sentiment_3mo_moving_avg": 0.332, "sentiment_mom_change": 0.008}, {"feedback_month": "2025-03-01", "feedback_count": 1778, "positive_count": 1226, "negative_count": 350, "avg_sentiment_score": 0.344, "sentiment_3mo_moving_avg": 0.335, "sentiment_mom_change": 0.01}, {"feedback_month": "2025-04-01", "feedback_count": 1809, "positive_count": 1248, "negative_count": 345, "avg_sentiment_score": 0.345, "sentiment_3mo_moving_avg": 0.341, "sentiment_mom_change": 0.001}, {"feedback_month": "2025-05-01", "feedback_count": 1840, "positive_count": 1238, "negative_count": 389, "avg_sentiment_score": 0.331, "sentiment_3mo_moving_avg": 0.34, "sentiment_mom_change": -0.014}, {"feedback_month": "2025-06-01", "feedback_count": 1871, "positive_count": 1265, "negative_count": 378, "avg_sentiment_score": 0.344, "sentiment_3mo_moving_avg": 0.34, "sentiment_mom_change": 0.013}], "sentiment_counts": [{"sentiment_label": "Negative", "n": 7505}, {"sentiment_label": "Positive", "n": 25526}, {"sentiment_label": "Neutral", "n": 4396}], "channels": [{"feedback_channel": "App Store", "n": 18745, "avg_sentiment": 0.343}, {"feedback_channel": "Support Chat", "n": 7521, "avg_sentiment": 0.345}, {"feedback_channel": "In-App Survey", "n": 7387, "avg_sentiment": 0.332}, {"feedback_channel": "Email", "n": 3774, "avg_sentiment": 0.337}], "topics": [{"topic_label": "Bugs, Errors & App Not Working", "n": 4476}, {"topic_label": "Ads & Monetization Frustration", "n": 1679}, {"topic_label": "General Dissatisfaction", "n": 735}, {"topic_label": "Perceived Waste of Time / Value", "n": 615}], "resolution_performance": [{"priority": "Low", "sla_hours": 96.0, "total_tickets": 2063, "resolved_tickets": 644, "avg_resolution_hours": 72.6, "median_resolution_hours": 59.6, "sla_attainment_pct": 79.2, "slowest_priority_rank": 1}, {"priority": "Medium", "sla_hours": 48.0, "total_tickets": 2192, "resolved_tickets": 694, "avg_resolution_hours": 35.4, "median_resolution_hours": 29.0, "sla_attainment_pct": 78.7, "slowest_priority_rank": 2}, {"priority": "High", "sla_hours": 24.0, "total_tickets": 2085, "resolved_tickets": 705, "avg_resolution_hours": 14.6, "median_resolution_hours": 12.3, "sla_attainment_pct": 86.4, "slowest_priority_rank": 3}, {"priority": "Critical", "sla_hours": 8.0, "total_tickets": 2129, "resolved_tickets": 726, "avg_resolution_hours": 4.9, "median_resolution_hours": 4.0, "sla_attainment_pct": 88.8, "slowest_priority_rank": 4}], "categories": [{"category": "Refund request", "ticket_count": 1752, "pct_of_all_tickets": 20.7, "avg_resolution_hours": 31.4, "avg_csat_rating": 2.78, "high_severity_count": 892, "volume_rank": 1, "worst_csat_rank": 2}, {"category": "Technical issue", "ticket_count": 1747, "pct_of_all_tickets": 20.6, "avg_resolution_hours": 29.9, "avg_csat_rating": 2.84, "high_severity_count": 897, "volume_rank": 2, "worst_csat_rank": 4}, {"category": "Cancellation request", "ticket_count": 1695, "pct_of_all_tickets": 20.0, "avg_resolution_hours": 29.2, "avg_csat_rating": 2.75, "high_severity_count": 821, "volume_rank": 3, "worst_csat_rank": 1}, {"category": "Product inquiry", "ticket_count": 1641, "pct_of_all_tickets": 19.4, "avg_resolution_hours": 30.7, "avg_csat_rating": 2.79, "high_severity_count": 802, "volume_rank": 4, "worst_csat_rank": 3}, {"category": "Billing inquiry", "ticket_count": 1634, "pct_of_all_tickets": 19.3, "avg_resolution_hours": 32.6, "avg_csat_rating": 2.88, "high_severity_count": 802, "volume_rank": 5, "worst_csat_rank": 5}], "priority_counts": [{"priority": "Critical", "n": 2129}, {"priority": "High", "n": 2085}, {"priority": "Low", "n": 2063}, {"priority": "Medium", "n": 2192}], "segment": [{"customer_segment": "SMB", "customers": 2351, "avg_mrr": 27.99, "churn_rate_pct": 15.87, "nps_score": 31.0, "avg_relationship_csat": 4.19, "total_tickets": 2273, "tickets_per_customer": 0.97, "avg_resolution_hours": 29.7}, {"customer_segment": "Mid-Market", "customers": 2345, "avg_mrr": 69.04, "churn_rate_pct": 29.68, "nps_score": 28.9, "avg_relationship_csat": 4.17, "total_tickets": 2632, "tickets_per_customer": 1.12, "avg_resolution_hours": 31.5}, {"customer_segment": "Enterprise", "customers": 2347, "avg_mrr": 97.33, "churn_rate_pct": 34.09, "nps_score": 27.9, "avg_relationship_csat": 4.17, "total_tickets": 3564, "tickets_per_customer": 1.52, "avg_resolution_hours": 31.0}], "country": [{"country": "Australia", "customers": 700, "avg_relationship_csat": 4.19, "avg_transactional_csat": 2.79, "csat_rank": 1}, {"country": "United Kingdom", "customers": 982, "avg_relationship_csat": 4.19, "avg_transactional_csat": 2.73, "csat_rank": 2}, {"country": "United States", "customers": 2990, "avg_relationship_csat": 4.18, "avg_transactional_csat": 2.81, "csat_rank": 3}, {"country": "Canada", "customers": 677, "avg_relationship_csat": 4.17, "avg_transactional_csat": 2.89, "csat_rank": 4}, {"country": "India", "customers": 1156, "avg_relationship_csat": 4.17, "avg_transactional_csat": 2.83, "csat_rank": 5}, {"country": "Germany", "customers": 538, "avg_relationship_csat": 4.16, "avg_transactional_csat": 2.83, "csat_rank": 6}], "risk_tiers": [{"risk_tier": "Healthy", "n": 2398}, {"risk_tier": "Medium Risk", "n": 793}, {"risk_tier": "Watch", "n": 1879}, {"risk_tier": "High Risk", "n": 104}], "risk_list": [{"customer_id": "9668-PUGNU", "customer_segment": "SMB", "subscription_plan": "Enterprise", "tenure_months": 71, "latest_nps": 2, "high_severity_last_90d": 1, "risk_tier": "High Risk"}, {"customer_id": "7754-IXRMC", "customer_segment": "SMB", "subscription_plan": "Starter", "tenure_months": 1, "latest_nps": 2, "high_severity_last_90d": 1, "risk_tier": "High Risk"}, {"customer_id": "6072-NUQCB", "customer_segment": "SMB", "subscription_plan": "Growth", "tenure_months": 22, "latest_nps": 4, "high_severity_last_90d": 1, "risk_tier": "High Risk"}, {"customer_id": "1302-TPUBN", "customer_segment": "SMB", "subscription_plan": "Enterprise", "tenure_months": 66, "latest_nps": 4, "high_severity_last_90d": 1, "risk_tier": "High Risk"}, {"customer_id": "2750-BJLSB", "customer_segment": "Enterprise", "subscription_plan": "Growth", "tenure_months": 47, "latest_nps": 4, "high_severity_last_90d": 1, "risk_tier": "High Risk"}, {"customer_id": "2903-YYTBW", "customer_segment": "SMB", "subscription_plan": "Starter", "tenure_months": 1, "latest_nps": 4, "high_severity_last_90d": 1, "risk_tier": "High Risk"}, {"customer_id": "7718-RXDGG", "customer_segment": "Mid-Market", "subscription_plan": "Starter", "tenure_months": 15, "latest_nps": 4, "high_severity_last_90d": 1, "risk_tier": "High Risk"}, {"customer_id": "5948-UJZLF", "customer_segment": "SMB", "subscription_plan": "Starter", "tenure_months": 2, "latest_nps": 4, "high_severity_last_90d": 1, "risk_tier": "High Risk"}, {"customer_id": "1240-HCBOH", "customer_segment": "SMB", "subscription_plan": "Enterprise", "tenure_months": 67, "latest_nps": 4, "high_severity_last_90d": 1, "risk_tier": "High Risk"}, {"customer_id": "2282-YGNOR", "customer_segment": "Mid-Market", "subscription_plan": "Growth", "tenure_months": 29, "latest_nps": 4, "high_severity_last_90d": 1, "risk_tier": "High Risk"}, {"customer_id": "2065-MMKGR", "customer_segment": "Mid-Market", "subscription_plan": "Growth", "tenure_months": 29, "latest_nps": 4, "high_severity_last_90d": 1, "risk_tier": "High Risk"}, {"customer_id": "1744-JHKYS", "customer_segment": "SMB", "subscription_plan": "Starter", "tenure_months": 34, "latest_nps": 5, "high_severity_last_90d": 1, "risk_tier": "High Risk"}, {"customer_id": "9031-ZVQPT", "customer_segment": "Enterprise", "subscription_plan": "Enterprise", "tenure_months": 72, "latest_nps": 5, "high_severity_last_90d": 1, "risk_tier": "High Risk"}, {"customer_id": "6408-WHTEF", "customer_segment": "Enterprise", "subscription_plan": "Enterprise", "tenure_months": 72, "latest_nps": 5, "high_severity_last_90d": 1, "risk_tier": "High Risk"}, {"customer_id": "4821-SJHJV", "customer_segment": "Enterprise", "subscription_plan": "Starter", "tenure_months": 32, "latest_nps": 5, "high_severity_last_90d": 1, "risk_tier": "High Risk"}, {"customer_id": "7159-FVYPK", "customer_segment": "Mid-Market", "subscription_plan": "Starter", "tenure_months": 3, "latest_nps": 5, "high_severity_last_90d": 1, "risk_tier": "High Risk"}, {"customer_id": "4237-CLSMM", "customer_segment": "SMB", "subscription_plan": "Starter", "tenure_months": 2, "latest_nps": 5, "high_severity_last_90d": 1, "risk_tier": "High Risk"}, {"customer_id": "6923-JHPMP", "customer_segment": "Mid-Market", "subscription_plan": "Starter", "tenure_months": 2, "latest_nps": 5, "high_severity_last_90d": 1, "risk_tier": "High Risk"}, {"customer_id": "5119-NZPTV", "customer_segment": "Mid-Market", "subscription_plan": "Starter", "tenure_months": 2, "latest_nps": 5, "high_severity_last_90d": 1, "risk_tier": "High Risk"}, {"customer_id": "0916-QOFDP", "customer_segment": "Enterprise", "subscription_plan": "Starter", "tenure_months": 14, "latest_nps": 5, "high_severity_last_90d": 1, "risk_tier": "High Risk"}, {"customer_id": "9840-EFJQB", "customer_segment": "Mid-Market", "subscription_plan": "Starter", "tenure_months": 1, "latest_nps": 5, "high_severity_last_90d": 1, "risk_tier": "High Risk"}, {"customer_id": "9588-YRFHY", "customer_segment": "SMB", "subscription_plan": "Enterprise", "tenure_months": 49, "latest_nps": 5, "high_severity_last_90d": 1, "risk_tier": "High Risk"}, {"customer_id": "1480-BKXGA", "customer_segment": "Enterprise", "subscription_plan": "Enterprise", "tenure_months": 72, "latest_nps": 5, "high_severity_last_90d": 1, "risk_tier": "High Risk"}, {"customer_id": "0114-IGABW", "customer_segment": "Mid-Market", "subscription_plan": "Enterprise", "tenure_months": 71, "latest_nps": 5, "high_severity_last_90d": 1, "risk_tier": "High Risk"}, {"customer_id": "8628-MFKAX", "customer_segment": "Enterprise", "subscription_plan": "Enterprise", "tenure_months": 72, "latest_nps": 5, "high_severity_last_90d": 1, "risk_tier": "High Risk"}], "plan": [{"subscription_plan": "Enterprise", "customers": 1695, "avg_mrr": 60.77, "churn_rate_pct": 2.83, "nps_score": 33.4, "avg_relationship_csat": 4.22, "nps_rank": 1}, {"subscription_plan": "Growth", "customers": 1473, "avg_mrr": 65.05, "churn_rate_pct": 11.27, "nps_score": 32.4, "avg_relationship_csat": 4.22, "nps_rank": 2}, {"subscription_plan": "Starter", "customers": 3875, "avg_mrr": 66.4, "churn_rate_pct": 42.71, "nps_score": 23.8, "avg_relationship_csat": 4.13, "nps_rank": 3}], "words_positive": [{"word": "game", "n": 7369}, {"word": "like", "n": 4830}, {"word": "good", "n": 4789}, {"word": "great", "n": 4572}, {"word": "love", "n": 4535}, {"word": "app", "n": 3789}, {"word": "time", "n": 2973}, {"word": "really", "n": 2506}, {"word": "it's", "n": 2184}, {"word": "easy", "n": 2079}, {"word": "play", "n": 2021}, {"word": "best", "n": 1908}, {"word": "i'm", "n": 1820}, {"word": "fun", "n": 1698}, {"word": "ads", "n": 1688}, {"word": "nice", "n": 1581}, {"word": "make", "n": 1570}, {"word": "phone", "n": 1567}, {"word": "want", "n": 1555}, {"word": "update", "n": 1537}], "words_negative": [{"word": "game", "n": 1734}, {"word": "time", "n": 1303}, {"word": "app", "n": 971}, {"word": "can't", "n": 855}, {"word": "update", "n": 804}, {"word": "ads", "n": 786}, {"word": "phone", "n": 648}, {"word": "like", "n": 603}, {"word": "i'm", "n": 586}, {"word": "bad", "n": 584}, {"word": "work", "n": 565}, {"word": "problem", "n": 541}, {"word": "fix", "n": 541}, {"word": "it's", "n": 533}, {"word": "really", "n": 493}, {"word": "new", "n": 479}, {"word": "want", "n": 422}, {"word": "money", "n": 421}, {"word": "good", "n": 416}, {"word": "play", "n": 416}]};
+
+const PAGES = [
+  {id:"exec", label:"Executive Overview", icon:"M3 12h4v6H3zM10 6h4v12h-4zM17 9h4v9h-4z"},
+  {id:"feedback", label:"Customer Feedback", icon:"M4 4h16v11H8l-4 4z"},
+  {id:"support", label:"Support Analytics", icon:"M12 2l2.2 6.6H21l-5.6 4 2.1 6.6L12 15.2 6.5 19.2l2.1-6.6L3 8.6h6.8z"},
+  {id:"cx", label:"Customer Experience", icon:"M12 21s-7-4.35-9.5-8.5C.7 8.9 2.6 5 6.2 5c2 0 3.4 1 5.8 3.4C14.4 6 15.8 5 17.8 5c3.6 0 5.5 3.9 3.7 7.5C19 16.65 12 21 12 21z"}
+];
+
+const tooltip = document.getElementById("tooltip");
+function showTip(evt, text){
+  tooltip.textContent = text;
+  tooltip.style.left = (evt.clientX + 14) + "px";
+  tooltip.style.top = (evt.clientY - 10) + "px";
+  tooltip.style.opacity = 1;
+}
+function hideTip(){ tooltip.style.opacity = 0; }
+
+function svgEl(tag, attrs){
+  const el = document.createElementNS("http://www.w3.org/2000/svg", tag);
+  for (const k in attrs) el.setAttribute(k, attrs[k]);
+  return el;
+}
+
+function lineChart(data, xKey, series, opts={}){
+  const w = opts.w || 560, h = opts.h || 220, pad = {t:14, r:16, b:26, l:40};
+  const svg = svgEl("svg", {viewBox:`0 0 ${w} ${h}`, width:"100%", height:h, style:"overflow:visible"});
+  const xs = data.map(d => d[xKey]);
+  const allVals = series.flatMap(s => data.map(d => d[s.key]).filter(v => v !== null && v !== undefined));
+  let yMin = Math.min(0, ...allVals), yMax = Math.max(...allVals);
+  if (opts.zeroLine === false) { yMin = Math.min(...allVals); }
+  const pd_ = (yMax - yMin) * 0.12 || 1;
+  yMin -= pd_; yMax += pd_;
+  const x = i => pad.l + (i/(xs.length-1)) * (w - pad.l - pad.r);
+  const y = v => (h - pad.b) - ((v - yMin)/(yMax - yMin)) * (h - pad.t - pad.b);
+
+  for (let i=0;i<4;i++){
+    const gy = pad.t + i*(h-pad.t-pad.b)/3;
+    svg.appendChild(svgEl("line", {x1:pad.l, x2:w-pad.r, y1:gy, y2:gy, class:"grid-line"}));
+  }
+  if (yMin < 0 && yMax > 0){
+    svg.appendChild(svgEl("line", {x1:pad.l, x2:w-pad.r, y1:y(0), y2:y(0), stroke:"var(--text-muted)", "stroke-width":1, "stroke-dasharray":"3,3"}));
+  }
+
+  const tickIdx = [0, Math.floor(xs.length/2), xs.length-1];
+  tickIdx.forEach(i => {
+    const label = String(xs[i]).slice(0,7);
+    const t = svgEl("text", {x:x(i), y:h-6, class:"axis-label", "text-anchor": i===0 ? "start" : (i===xs.length-1 ? "end" : "middle")});
+    t.textContent = label;
+    svg.appendChild(t);
+  });
+
+  series.forEach(s => {
+    let pathD = "";
+    data.forEach((d,i) => {
+      const v = d[s.key];
+      if (v === null || v === undefined) return;
+      pathD += (pathD ? "L" : "M") + x(i) + " " + y(v) + " ";
+    });
+    svg.appendChild(svgEl("path", {d:pathD, fill:"none", stroke:s.color, "stroke-width":s.width||2, "stroke-linejoin":"round", "stroke-linecap":"round", opacity:s.opacity||1}));
+  });
+
+  const hitW = (w-pad.l-pad.r)/(xs.length-1);
+  data.forEach((d,i) => {
+    const hit = svgEl("rect", {x:x(i)-hitW/2, y:pad.t, width:hitW, height:h-pad.t-pad.b, fill:"transparent"});
+    hit.addEventListener("mousemove", (e) => {
+      const parts = series.filter(s=>d[s.key]!=null).map(s => `${s.label}: ${d[s.key]}`);
+      showTip(e, `${d[xKey]}  ·  ${parts.join("  ·  ")}`);
+    });
+    hit.addEventListener("mouseleave", hideTip);
+    svg.appendChild(hit);
+  });
+
+  return svg;
+}
+
+function barChart(data, labelKey, valueKey, opts={}){
+  const horizontal = opts.horizontal !== false;
+  const w = opts.w || 520;
+  const barH = opts.barH || 26, gap = opts.gap || 10;
+  const h = data.length * (barH+gap) + gap;
+  const pad = {l: opts.padL || 110, r: 46, t:6, b:6};
+  const svg = svgEl("svg", {viewBox:`0 0 ${w} ${h}`, width:"100%", height:h});
+  const max = opts.max || Math.max(...data.map(d=>d[valueKey])) * 1.08;
+  const scale = v => (v/max) * (w - pad.l - pad.r);
+
+  data.forEach((d,i) => {
+    const yy = pad.t + i*(barH+gap);
+    const label = svgEl("text", {x:pad.l-10, y:yy+barH/2+4, "text-anchor":"end", class:"axis-label", "font-size":12});
+    label.textContent = d[labelKey];
+    svg.appendChild(label);
+
+    const bw = Math.max(scale(d[valueKey]), 2);
+    const rect = svgEl("rect", {x:pad.l, y:yy, width:bw, height:barH, rx:5, fill:d.color || opts.color || "var(--accent)"});
+    rect.addEventListener("mousemove", (e)=> showTip(e, `${d[labelKey]}: ${opts.fmt ? opts.fmt(d[valueKey]) : d[valueKey]}`));
+    rect.addEventListener("mouseleave", hideTip);
+    svg.appendChild(rect);
+
+    const val = svgEl("text", {x:pad.l+bw+8, y:yy+barH/2+4, class:"value-label", "font-size":12});
+    val.textContent = opts.fmt ? opts.fmt(d[valueKey]) : d[valueKey];
+    svg.appendChild(val);
+  });
+  return svg;
+}
+
+function divergingBar(segments, opts={}){
+  const w = opts.w || 560, h = opts.h || 46;
+  const svg = svgEl("svg", {viewBox:`0 0 ${w} ${h}`, width:"100%", height:h});
+  const total = segments.reduce((a,s)=>a+s.value,0);
+  let xAcc = 0;
+  segments.forEach(seg => {
+    const segW = (seg.value/total) * w;
+    const rect = svgEl("rect", {x:xAcc, y:8, width:Math.max(segW,0.5), height:h-16, fill:seg.color});
+    rect.addEventListener("mousemove",(e)=>showTip(e, `${seg.label}: ${(seg.value/total*100).toFixed(0)}%`));
+    rect.addEventListener("mouseleave", hideTip);
+    svg.appendChild(rect);
+    if (segW > 34){
+      const t = svgEl("text", {x:xAcc+segW/2, y:h/2+4, "text-anchor":"middle", fill:"#fff", "font-size":12, "font-weight":600});
+      t.textContent = (seg.value/total*100).toFixed(0)+"%";
+      svg.appendChild(t);
+    }
+    xAcc += segW;
+  });
+  return svg;
+}
+
+function kpiCard({label, value, sub, deltaText, deltaDir}){
+  const div = document.createElement("div");
+  div.className = "card kpi";
+  div.innerHTML = `
+    <div class="kpi-label">${label}</div>
+    <div class="kpi-value">${value}</div>
+    ${deltaText ? `<div class="kpi-delta ${deltaDir}">${deltaText}</div>` : (sub ? `<div class="kpi-delta flat">${sub}</div>` : "")}
+  `;
+  return div;
+}
+
+function card(title, note){
+  const div = document.createElement("div");
+  div.className = "card";
+  div.innerHTML = `<h3>${title}</h3>`;
+  if (note){
+    const p = document.createElement("div");
+    p.className = "card-note";
+    p.textContent = note;
+    div.appendChild(p);
+  }
+  return div;
+}
+function appendChart(cardEl, chartEl, beforeNote){
+  if (beforeNote) cardEl.insertBefore(chartEl, cardEl.querySelector(".card-note"));
+  else cardEl.appendChild(chartEl);
+}
+
+const STATUS_COLOR = {"Positive":"var(--good)", "Neutral":"var(--text-muted)", "Negative":"var(--critical)",
+                       "Promoter":"var(--good)", "Passive":"var(--text-muted)", "Detractor":"var(--critical)",
+                       "Healthy":"var(--good)", "Watch":"var(--warning)", "Medium Risk":"#e07a3f", "High Risk":"var(--critical)",
+                       "Critical":"var(--critical)", "High":"#e07a3f", "Medium":"var(--warning)", "Low":"var(--good)"};
+
+function renderExec(){
+  const el = document.createElement("div");
+  el.innerHTML = `<div class="page-head"><div><h1>Executive Overview</h1><p>Headline health of the customer base, as of the latest data snapshot.</p></div></div>`;
+
+  const kpiRow = document.createElement("div");
+  kpiRow.className = "grid kpi-row";
+  const k = DATA.kpi;
+  kpiRow.appendChild(kpiCard({label:"Current NPS", value:k.current_nps, deltaText:"down from ~39 two years ago", deltaDir:"down"}));
+  kpiRow.appendChild(kpiCard({label:"Relationship CSAT", value:k.current_relationship_csat+" / 5", sub:"latest survey wave"}));
+  kpiRow.appendChild(kpiCard({label:"Total Customers", value:k.total_customers.toLocaleString(), sub:k.churn_rate_pct+"% churned to date"}));
+  kpiRow.appendChild(kpiCard({label:"Open Tickets", value:k.open_tickets.toLocaleString(), sub:k.resolved_tickets.toLocaleString()+" resolved"}));
+  kpiRow.appendChild(kpiCard({label:"Avg. Resolution", value:k.avg_resolution_hours+"h", sub:"across all priorities"}));
+  el.appendChild(kpiRow);
+
+  const row = document.createElement("div");
+  row.className = "grid chart-row-2";
+  const c1 = card("Satisfaction trend", "Monthly NPS (bold: 3-month moving average) — the metric has been declining since mid-2024, most sharply after Q4 2024.");
+  appendChart(c1, lineChart(DATA.nps_trend, "survey_month", [
+    {key:"nps_score", color:"var(--text-muted)", width:1.4, opacity:0.55, label:"Monthly NPS"},
+    {key:"nps_3mo_moving_avg", color:"var(--accent)", width:2.4, label:"3mo avg"},
+  ]), true);
+  row.appendChild(c1);
+
+  const c2 = card("Risk distribution", "Active customers tiered by churn risk (excludes already-churned).");
+  const tiers = ["Healthy","Watch","Medium Risk","High Risk"].map(t => ({label:t, value:(DATA.risk_tiers.find(r=>r.risk_tier===t)||{n:0}).n, color:STATUS_COLOR[t]}));
+  appendChart(c2, barChart(tiers, "label", "value", {color:"var(--accent)", padL:90, barH:28, fmt:v=>v.toLocaleString()}), true);
+  tiers.forEach((t,i) => { c2.querySelectorAll("rect")[i].setAttribute("fill", t.color); });
+  row.appendChild(c2);
+  el.appendChild(row);
+  return el;
+}
+
+function renderFeedback(){
+  const el = document.createElement("div");
+  el.innerHTML = `<div class="page-head"><div><h1>Customer Feedback</h1><p>37,427 feedback items across four channels, scored with NLTK VADER.</p></div></div>`;
+
+  const row1 = document.createElement("div");
+  row1.className = "grid chart-row-even";
+
+  const c1 = card("Sentiment breakdown");
+  const segs = ["Negative","Neutral","Positive"].map(l => ({label:l, value:(DATA.sentiment_counts.find(s=>s.sentiment_label===l)||{n:0}).n, color:STATUS_COLOR[l]}));
+  appendChart(c1, divergingBar(segs));
+  const legend = document.createElement("div"); legend.className="legend";
+  segs.forEach(s => legend.innerHTML += `<div class="legend-item"><span class="legend-swatch" style="background:${s.color}"></span>${s.label} (${s.value.toLocaleString()})</div>`);
+  c1.appendChild(legend);
+  row1.appendChild(c1);
+
+  const c2 = card("Feedback channels", "Volume by channel; color-independent — sentiment is fairly even across channels.");
+  appendChart(c2, barChart(DATA.channels.map(d=>({label:d.feedback_channel, value:d.n})), "label", "value", {padL:100, barH:26, fmt:v=>v.toLocaleString()}), true);
+  row1.appendChild(c2);
+  el.appendChild(row1);
+
+  const row2 = document.createElement("div");
+  row2.className = "grid chart-row-even";
+  row2.style.marginTop = "16px";
+
+  const c3 = card("Top complaint topics", "TF-IDF + NMF over negative feedback (Module 6) — share of negative feedback.");
+  appendChart(c3, barChart(DATA.topics.map(d=>({label:d.topic_label, value:d.n})), "label", "value", {padL:190, barH:30, color:"var(--critical)", fmt:v=>v.toLocaleString()}), true);
+  row2.appendChild(c3);
+
+  const c4 = card("Word frequency", "Size ≈ mention count. Positive in accent, negative in critical.");
+  const wc = document.createElement("div"); wc.className = "word-cloud";
+  const maxP = Math.max(...DATA.words_positive.map(w=>w.n)), maxN = Math.max(...DATA.words_negative.map(w=>w.n));
+  DATA.words_positive.slice(0,14).forEach(w => {
+    const span = document.createElement("span");
+    span.style.fontSize = (13 + (w.n/maxP)*22) + "px";
+    span.style.color = "var(--good)";
+    span.textContent = w.word;
+    span.title = w.n + " mentions";
+    wc.appendChild(span);
+  });
+  DATA.words_negative.slice(0,10).forEach(w => {
+    const span = document.createElement("span");
+    span.style.fontSize = (12 + (w.n/maxN)*18) + "px";
+    span.style.color = "var(--critical)";
+    span.textContent = w.word;
+    span.title = w.n + " mentions";
+    wc.appendChild(span);
+  });
+  appendChart(c4, wc, true);
+  row2.appendChild(c4);
+  el.appendChild(row2);
+
+  return el;
+}
+
+function renderSupport(){
+  const el = document.createElement("div");
+  el.innerHTML = `<div class="page-head"><div><h1>Support Analytics</h1><p>8,469 tickets — resolution performance, priority mix, and category drivers.</p></div></div>`;
+
+  const row1 = document.createElement("div");
+  row1.className = "grid chart-row-even";
+
+  const c1 = card("Resolution time by priority", "Hours to resolve, real priority tiers (SLA target shown as label).");
+  const order = ["Critical","High","Medium","Low"];
+  const resData = order.map(p => {
+    const d = DATA.resolution_performance.find(r=>r.priority===p);
+    return {label:`${p} (SLA ${d.sla_hours}h)`, value:d.avg_resolution_hours, color:STATUS_COLOR[p]};
+  });
+  const bc1 = barChart(resData, "label", "value", {padL:150, barH:28, fmt:v=>v+"h"});
+  appendChart(c1, bc1, true);
+  resData.forEach((d,i)=> bc1.querySelectorAll("rect")[i].setAttribute("fill", d.color));
+  row1.appendChild(c1);
+
+  const c2 = card("SLA attainment", "% of resolved tickets that met their priority's SLA target.");
+  const slaData = order.map(p => {
+    const d = DATA.resolution_performance.find(r=>r.priority===p);
+    return {label:p, value:d.sla_attainment_pct, color:STATUS_COLOR[p]};
+  });
+  const bc2 = barChart(slaData, "label", "value", {padL:80, barH:28, max:100, fmt:v=>v+"%"});
+  appendChart(c2, bc2, true);
+  slaData.forEach((d,i)=> bc2.querySelectorAll("rect")[i].setAttribute("fill", d.color));
+  row1.appendChild(c2);
+  el.appendChild(row1);
+
+  const row2 = document.createElement("div");
+  row2.className = "grid chart-row-2";
+  row2.style.marginTop = "16px";
+
+  const c3 = card("Category analysis", "Ticket categories by volume, resolution time, and satisfaction.");
+  const tbl = document.createElement("div"); tbl.className = "table-wrap";
+  tbl.innerHTML = `<table><thead><tr><th>Category</th><th class="num">Tickets</th><th class="num">Share</th><th class="num">Avg. Res.</th><th class="num">Avg. CSAT</th></tr></thead><tbody>
+    ${DATA.categories.map(c => `<tr><td>${c.category}</td><td class="mono">${c.ticket_count.toLocaleString()}</td><td class="mono">${c.pct_of_all_tickets}%</td><td class="mono">${c.avg_resolution_hours}h</td><td class="mono">${c.avg_csat_rating}</td></tr>`).join("")}
+  </tbody></table>`;
+  c3.insertBefore(tbl, c3.querySelector('.card-note'));
+  row2.appendChild(c3);
+
+  const c4 = card("Ticket priority mix");
+  const pri = order.map(p => ({label:p, value:(DATA.priority_counts.find(x=>x.priority===p)||{n:0}).n, color:STATUS_COLOR[p]}));
+  const bc4 = barChart(pri, "label", "value", {padL:70, barH:28, fmt:v=>v.toLocaleString()});
+  appendChart(c4, bc4);
+  pri.forEach((d,i)=> bc4.querySelectorAll("rect")[i].setAttribute("fill", d.color));
+  row2.appendChild(c4);
+  el.appendChild(row2);
+
+  return el;
+}
+
+function renderCX(){
+  const el = document.createElement("div");
+  el.innerHTML = `<div class="page-head"><div><h1>Customer Experience</h1><p>NPS by segment, CSAT by market, and the retention-priority list.</p></div></div>`;
+
+  const row1 = document.createElement("div");
+  row1.className = "grid chart-row-even";
+
+  const c1 = card("NPS by segment");
+  appendChart(c1, barChart(DATA.segment.map(d=>({label:d.customer_segment, value:d.nps_score})), "label", "value", {padL:100, barH:30}));
+  row1.appendChild(c1);
+
+  const c2 = card("CSAT by country", "Relationship CSAT, ranked.");
+  appendChart(c2, barChart(DATA.country.map(d=>({label:d.country, value:d.avg_relationship_csat})), "label", "value", {padL:110, barH:24, max:5, fmt:v=>v+"/5"}), true);
+  row1.appendChild(c2);
+  el.appendChild(row1);
+
+  const row2 = document.createElement("div");
+  row2.className = "grid chart-row-2";
+  row2.style.marginTop = "16px";
+
+  const c3 = card("Retention-priority list", "Active customers in the two highest risk tiers, worst first (sql: vw_at_risk_customers).");
+  const tbl = document.createElement("div"); tbl.className = "table-wrap";
+  tbl.innerHTML = `<table><thead><tr><th>Customer</th><th>Segment</th><th>Plan</th><th class="num">NPS</th><th class="num">High-sev (90d)</th><th>Risk</th></tr></thead><tbody>
+    ${DATA.risk_list.slice(0,10).map(r => `<tr><td class="mono">${r.customer_id}</td><td>${r.customer_segment}</td><td>${r.subscription_plan}</td><td class="mono">${r.latest_nps ?? "–"}</td><td class="mono">${r.high_severity_last_90d}</td><td><span class="badge ${r.risk_tier==='High Risk'?'critical':'warning'}"><span class="dot" style="background:currentColor"></span>${r.risk_tier}</span></td></tr>`).join("")}
+  </tbody></table>`;
+  c3.insertBefore(tbl, c3.querySelector('.card-note'));
+  row2.appendChild(c3);
+
+  const c4 = card("Monthly sentiment trend", "Feedback sentiment score, bold line = 3-month moving average.");
+  appendChart(c4, lineChart(DATA.sentiment_trend, "feedback_month", [
+    {key:"avg_sentiment_score", color:"var(--text-muted)", width:1.4, opacity:0.55, label:"Monthly"},
+    {key:"sentiment_3mo_moving_avg", color:"var(--accent)", width:2.4, label:"3mo avg"},
+  ], {zeroLine:false}), true);
+  row2.appendChild(c4);
+  el.appendChild(row2);
+
+  return el;
+}
+
+const RENDERERS = {exec:renderExec, feedback:renderFeedback, support:renderSupport, cx:renderCX};
+
+function mount(pageId){
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  main.appendChild(RENDERERS[pageId]());
+  document.querySelectorAll(".nav-btn").forEach(b => {
+    if (b.dataset.page === pageId) b.setAttribute("aria-current","page");
+    else b.removeAttribute("aria-current");
+  });
+  try { localStorage.setItem("voiceiq_page", pageId); } catch(e){}
+}
+
+const nav = document.getElementById("nav");
+PAGES.forEach(p => {
+  const btn = document.createElement("button");
+  btn.className = "nav-btn";
+  btn.dataset.page = p.id;
+  btn.innerHTML = `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="${p.icon}"/></svg>${p.label}`;
+  btn.addEventListener("click", () => mount(p.id));
+  nav.appendChild(btn);
+});
+
+let initial = "exec";
+try { initial = localStorage.getItem("voiceiq_page") || "exec"; } catch(e){}
+mount(initial);
+</script>
