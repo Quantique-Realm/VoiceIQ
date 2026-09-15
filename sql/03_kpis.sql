@@ -1,28 +1,8 @@
--- =============================================================================
--- VoiceIQ — Voice of Customer Analytics Platform
--- 03_kpis.sql
---
--- Purpose : Executive & product-level KPI views for the Power BI "Executive
---           Overview" and "Customer Experience" pages (Module 8).
--- Usage   : psql -d voiceiq -f sql/03_kpis.sql
---
--- Design note: every view below that needs figures from more than one fact
--- table (surveys + support_tickets, say) aggregates each fact table to the
--- target grain in its OWN CTE first, then joins the pre-aggregated CTEs.
--- Joining two fact tables directly to a shared dimension before aggregating
--- causes row fan-out (a customer with 5 surveys and 3 tickets would produce
--- 15 joined rows), silently inflating every AVG()/SUM() downstream — a
--- classic and easy-to-miss correctness bug in exactly this kind of query.
--- =============================================================================
+-- Executive & product-level KPI views
 
 SET search_path TO voiceiq, public;
 
--- -----------------------------------------------------------------------------
--- 1. EXECUTIVE KPI TABLE
--- One-row snapshot for the top KPI cards on the Executive Overview page.
--- Uses each customer's MOST RECENT survey (DISTINCT ON) so "current NPS/CSAT"
--- reflects where things stand today, not a blended all-time average.
--- -----------------------------------------------------------------------------
+-- 1. Executive KPI snapshot
 CREATE OR REPLACE VIEW vw_executive_kpis AS
 WITH latest_survey AS (
     SELECT DISTINCT ON (customer_id)
@@ -57,14 +37,7 @@ FROM latest_survey ls
 CROSS JOIN ticket_stats ts
 GROUP BY ts.open_tickets, ts.resolved_tickets, ts.avg_resolution_hours, ts.avg_transactional_csat;
 
-COMMENT ON VIEW vw_executive_kpis IS 'Single-row KPI snapshot for the Executive Overview dashboard page.';
-
--- -----------------------------------------------------------------------------
--- 2. MONTHLY NPS TREND
--- DATE_TRUNC for monthly buckets, LAG for month-over-month change, a window
--- frame for a trailing 3-month moving average — the standard way to smooth a
--- noisy monthly NPS series for an executive line chart.
--- -----------------------------------------------------------------------------
+-- 2. Monthly NPS trend, moving average, MoM delta
 CREATE OR REPLACE VIEW vw_monthly_nps_trend AS
 WITH monthly AS (
     SELECT
@@ -91,13 +64,7 @@ SELECT
 FROM monthly
 ORDER BY survey_month;
 
-COMMENT ON VIEW vw_monthly_nps_trend IS 'Monthly NPS with 3-month moving average and month-over-month delta.';
-
--- -----------------------------------------------------------------------------
--- 3. AVERAGE CSAT BY COUNTRY
--- Fact tables pre-aggregated separately (see file header), then joined and
--- ranked so the dashboard can call out best/worst-performing markets.
--- -----------------------------------------------------------------------------
+-- 3. Average CSAT by country
 CREATE OR REPLACE VIEW vw_csat_by_country AS
 WITH survey_agg AS (
     SELECT
@@ -127,11 +94,7 @@ FROM survey_agg sa
 LEFT JOIN ticket_agg ta ON ta.country = sa.country
 ORDER BY avg_relationship_csat DESC;
 
-COMMENT ON VIEW vw_csat_by_country IS 'Relationship and transactional CSAT by customer country, ranked best to worst.';
-
--- -----------------------------------------------------------------------------
--- 4. CUSTOMER SATISFACTION BY SUBSCRIPTION PLAN
--- -----------------------------------------------------------------------------
+-- 4. Satisfaction by subscription plan
 CREATE OR REPLACE VIEW vw_satisfaction_by_plan AS
 WITH survey_agg AS (
     SELECT
@@ -167,12 +130,7 @@ FROM survey_agg sa
 JOIN plan_agg pa USING (subscription_plan)
 ORDER BY sa.nps_score DESC;
 
-COMMENT ON VIEW vw_satisfaction_by_plan IS 'NPS, CSAT, churn rate and MRR by subscription plan tier.';
-
--- -----------------------------------------------------------------------------
--- 5. CUSTOMER SEGMENT COMPARISON
--- SMB vs. Mid-Market vs. Enterprise, side by side on every headline metric.
--- -----------------------------------------------------------------------------
+-- 5. Customer segment comparison
 CREATE OR REPLACE VIEW vw_segment_comparison AS
 WITH base_agg AS (
     SELECT
@@ -220,5 +178,3 @@ FROM base_agg b
 JOIN survey_agg sa USING (customer_segment)
 JOIN ticket_agg ta USING (customer_segment)
 ORDER BY sa.nps_score DESC;
-
-COMMENT ON VIEW vw_segment_comparison IS 'Side-by-side SMB / Mid-Market / Enterprise comparison across revenue, churn, NPS, CSAT and support load.';

@@ -1,23 +1,5 @@
--- =============================================================================
--- VoiceIQ — Voice of Customer Analytics Platform
--- 02_load_data.sql
---
--- Purpose : Load the cleaned, reconciled CSVs from data/processed/ (produced
---           by notebooks/01_data_cleaning.ipynb) into the voiceiq schema
---           created by 01_schema.sql.
--- Usage   : psql -d voiceiq -f sql/02_load_data.sql
---           Run from a machine that can see the repo's data/processed/
---           directory — \copy runs client-side, so relative paths resolve
---           against the directory psql was launched from. Run this from the
---           VoiceIQ/ repo root.
---
--- Notes   : Generated columns (customers has none; surveys.nps_category and
---           support_tickets.resolution_time are GENERATED ALWAYS AS ... STORED)
---           are never listed here — Postgres computes them itself and
---           rejects any attempt to INSERT/COPY into them directly.
---           Load order matters: customers first (parent), then the three
---           fact tables that reference it.
--- =============================================================================
+-- Loads data/processed/*.csv into the voiceiq schema. Run from repo root:
+--   psql -d voiceiq -f sql/02_load_data.sql
 
 SET search_path TO voiceiq, public;
 
@@ -35,9 +17,6 @@ TRUNCATE TABLE support_tickets, feedback, surveys, customers RESTART IDENTITY CA
 
 COMMIT;
 
--- -----------------------------------------------------------------------------
--- Post-load sanity check: row counts per table.
--- -----------------------------------------------------------------------------
 SELECT 'customers' AS table_name, COUNT(*) AS row_count FROM customers
 UNION ALL SELECT 'surveys', COUNT(*) FROM surveys
 UNION ALL SELECT 'feedback', COUNT(*) FROM feedback
