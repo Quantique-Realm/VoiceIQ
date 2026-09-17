@@ -110,12 +110,6 @@ becoming a Detractor) — not broad product dissatisfaction. 104 active
 customers are High Risk today via `vw_at_risk_customers`, a ready-to-use
 retention list.
 
-## Future improvements
-
-- Real survey-platform data (Qualtrics/Delighted) in place of modeled NPS/CSAT
-- Product-usage/login-frequency features to strengthen the predictive model
-- Scheduled pipeline automation if run against a live system
-
 ## Local setup
 
 Raw datasets aren't committed (size + licensing) — see `docs/architecture.md`
