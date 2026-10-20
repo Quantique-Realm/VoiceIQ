@@ -2,58 +2,70 @@
 
 ## Executive summary
 
-NPS has declined from 39 (Apr 2023) to 19 (Jun 2025) — a two-year erosion,
-not a blip. The data points to a specific, fixable cause: slow, high-severity
-support resolution, not product-wide dissatisfaction. 104 active customers
-are currently High Risk of churn; 793 more are Medium Risk. Fixing support
-triage is the highest-leverage lever available.
+NPS has fallen from 37.6 (Q2 2023) to 19.5 (Q2 2025) — a steady two-year
+decline, not a blip. Feedback sentiment stayed flat over the same period, so
+the decline isn't about how customers talk about the product. The data
+points to support experience (serious and slow tickets) and to Starter-plan
+customers. 114 active customers are High Risk of churn today; 621 more are
+Medium Risk.
 
 ## Key findings
 
-**1. NPS is declining, driven by support experience, not broad dissatisfaction.**
-The logistic regression (Module 7) shows a Critical/High-severity ticket in
-the trailing 90 days is the single strongest driver of becoming a Detractor
-(odds ratio 0.64) — stronger than plan, segment, or revenue.
+**1. NPS is declining while product sentiment is flat.**
+NPS by quarter drops from 37.6 to 19.5 (KPI query 3). Average feedback
+sentiment holds at about 0.33–0.36 every month (CX query 5).
 
-**2. Resolution speed and satisfaction move together, sharply.**
-Tickets resolved in under 8 hours average 3.14/5 CSAT; tickets taking over
-96 hours average 1.33/5 — a drop of more than 2 points. Correlation:
-r ≈ −0.29 (ticket-level).
+**2. Support tickets and plan type drive Detractors.**
+The logistic regression (notebook 03, AUC 0.71, catches 66% of Detractors)
+shows the strongest pushes towards Detractor are: Starter plan, higher
+monthly bill, Critical/High tickets in the last 90 days, and slow
+resolution. Longer tenure pushes towards Promoter. Starter customers also
+churn at 42.7% vs. 2.8% for Enterprise (KPI query 6).
 
-**3. A hidden, cross-segment dissatisfaction cluster.**
-Unsupervised clustering found ~1,909 customers (27% of the base) with NPS
-≈5.8 and CSAT ≈3.0 — spanning Enterprise, Mid-Market, and SMB almost evenly.
-The current revenue-based `customer_segment` field cannot see this group.
+**3. Slow resolution sharply lowers satisfaction.**
+Tickets resolved in under 8 hours average 3.18/5 CSAT; tickets taking over
+96 hours average 1.44/5 (CX query 3). Correlation: −0.29 (ticket level).
 
-**4. Most negative feedback is generic reliability complaints, not features.**
-Of 7,505 negative feedback items: 59.6% are bugs/errors ("app not working"),
-22.4% ads/monetization frustration, 9.8% general dissatisfaction, 8.2%
-perceived waste of time. Reliability, not any single feature, is the top
-driver of negative feedback.
+**4. A hidden, cross-segment unhappy group.**
+K-Means clustering found ~2,072 customers (29% of the base) with NPS ≈5.9
+and CSAT ≈3.2 and the most tickets, spread across Enterprise, Mid-Market,
+and SMB. The revenue-based `customer_segment` field cannot see this group.
 
-**5. 104 customers are High Risk today.**
-`vw_at_risk_customers`: 104 High Risk, 793 Medium Risk, 1,879 Watch, 2,398
-Healthy (active customers only). Current state: 26.5% lifetime churn rate,
-30.8h average resolution time, 5,700 open tickets.
+**5. Bugs are the biggest specific complaint.**
+Of 7,505 negative feedback items: 45% general dissatisfaction, 27% bugs &
+crashes, 20% ads & pricing, 5% "waste of time", 3% login & account
+(CX query 6).
+
+**6. 114 customers are High Risk today.**
+CX query 7: 114 High Risk, 621 Medium Risk, 2,077 Watch, 2,362 Healthy
+(active customers only). Current state: 26.5% lifetime churn rate, 30.5h
+average resolution time, 5,700 open tickets.
 
 ## Recommendations
 
-1. **Prioritize Critical/High ticket triage** — the single largest lever on
-   NPS found in the data. Target: cut average resolution time on these two
-   tiers first (currently 4.9h / 14.6h vs. 8h / 24h SLA — already inside SLA
-   on average, so the fix is the *tail*, not the average: investigate the
-   ~7% of tickets that breach SLA badly, not the median).
-2. **Build a satisfaction-based segment** alongside the revenue tiers to
-   surface the ~1,909-customer dissatisfaction cluster for targeted outreach
-   — it is invisible to any dashboard cut by `customer_segment` alone.
-3. **Action the 104 High Risk accounts directly** via `vw_at_risk_customers`
-   — this is a ready-to-use retention call list, not just a metric.
-4. **Investigate reliability/bug reports as a roadmap input** — 60% of
-   negative feedback traces to "it doesn't work," ahead of any specific
-   feature request.
+1. **Fix the slow tail of Critical/High tickets.** On average these are
+   already inside SLA (4.8h vs. 8h, 14.4h vs. 24h), but ~13% still breach
+   it, and 6% of all resolved tickets take over 94 hours. Those are the
+   tickets that turn customers into Detractors.
+2. **Retention programme for Starter-plan customers** — lowest NPS (23.6)
+   and highest churn (42.7%) of any plan; nudging them to annual contracts
+   is the obvious lever.
+3. **Call the 114 High Risk accounts** — query 7 is a ready-made call list,
+   not just a metric.
+4. **Add a satisfaction-based segment** next to the revenue tiers, so the
+   ~2,072-customer unhappy group shows up in reporting.
+5. **Feed bug/crash reports into the roadmap** — the largest specific
+   complaint theme.
+
+## Caveats
+
+NPS/CSAT surveys, ticket dates and resolution times are generated (see
+`docs/architecture.md` §3), with ticket and churn effects built in. The
+findings show the pipeline works end to end; with real survey data the same
+SQL and notebooks would measure the real effects.
 
 ## Future improvements
 
-- Replace modeled NPS/CSAT with real survey platform data (Qualtrics/Delighted export) if this becomes a live system.
-- Extend the predictive model with real product-usage/login-frequency data — not available in the current public datasets, likely to raise the model's AUC beyond 0.63.
-- Automate the pipeline (Modules 3-6) as a scheduled job once running against live data.
+- Replace modeled NPS/CSAT with real survey platform data (Qualtrics/Delighted export).
+- Add product-usage/login-frequency data to the predictive model.
+- Automate the pipeline as a scheduled job once running against live data.

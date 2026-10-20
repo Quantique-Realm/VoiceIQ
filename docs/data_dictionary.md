@@ -2,9 +2,8 @@
 
 Full field-by-field reference for the 4 warehouse tables. `origin` marks
 real (from source data), derived (computed from real fields), or modeled
-(generated — see `architecture.md` §3 for why and how). The 10 analytics
-views are summarized at the end; each view's own SQL is the authoritative
-definition (`sql/03_kpis.sql`, `sql/04_customer_experience.sql`).
+(generated — see `architecture.md` §3 for why and how). The analysis
+queries (`sql/03_kpis.sql`, `sql/04_customer_experience.sql`) are listed at the end.
 
 ## customers
 
@@ -42,10 +41,10 @@ definition (`sql/03_kpis.sql`, `sql/04_customer_experience.sql`).
 | feedback_text | text | real | Play Store review text |
 | feedback_channel | varchar(30) | modeled | App Store real; others synthesized |
 | source_rating | smallint | — | Always null — source has no star rating |
-| sentiment_label | varchar(10) | derived | NLTK VADER, Module 6 |
+| sentiment_label | varchar(10) | derived | NLTK VADER (notebook 02) |
 | sentiment_score | numeric(5,4) | derived | VADER compound score |
-| topic_label | varchar(50) | derived | TF-IDF + NMF, Negative feedback only, Module 6 |
-| created_at | timestamp | modeled | Sampled across a designed monthly growth curve |
+| topic_label | varchar(50) | derived | Keyword rules, Negative feedback only (notebook 02) |
+| created_at | timestamp | modeled | Random moment while the customer was active |
 
 ## support_tickets
 
@@ -56,22 +55,26 @@ definition (`sql/03_kpis.sql`, `sql/04_customer_experience.sql`).
 | category | varchar(50) | real | From `Ticket Type` |
 | priority | varchar(20) | real | From `Ticket Priority` |
 | status | varchar(20) | real | From `Ticket Status` |
-| ticket_created_at | timestamp | modeled | Source timestamps unusable (see architecture.md); designed monthly curve |
+| ticket_created_at | timestamp | modeled | Source timestamps unusable (see architecture.md); random moment while the customer was active |
 | ticket_resolved_at | timestamp | modeled | Null unless Closed |
 | resolution_time | numeric(10,2), generated | derived | Hours, computed in-DB from the two timestamps |
 | csat_rating | smallint (1-5) | real, blended | Real rating nudged by resolution_time vs. SLA deviation |
 
-## Views
+## Analysis queries
 
-| View | Grain | Purpose |
+| File | Query | What it answers |
 |---|---|---|
-| vw_executive_kpis | 1 row | Top-line snapshot: NPS, CSAT, churn, tickets |
-| vw_monthly_nps_trend | month | NPS trend, 3mo moving avg, MoM delta |
-| vw_csat_by_country | country | Relationship + transactional CSAT, ranked |
-| vw_satisfaction_by_plan | plan | NPS/CSAT/churn/MRR by subscription plan |
-| vw_segment_comparison | segment | SMB/Mid-Market/Enterprise side by side |
-| vw_ticket_resolution_performance | priority | Resolution time, SLA attainment |
-| vw_top_complaint_categories | category | Volume + satisfaction ranking |
-| vw_repeat_complaints | customer × category | 2+ tickets in same category |
-| vw_sentiment_trend | month | Feedback sentiment over time |
-| vw_at_risk_customers | customer | Churn-risk tiering, active customers only |
+| sql/03_kpis.sql | 1 | Customers and churn rate |
+| | 2 | Overall NPS and CSAT |
+| | 3 | NPS by quarter (trend) |
+| | 4 | NPS by customer segment |
+| | 5 | NPS by subscription plan |
+| | 6 | Churn rate and revenue by plan |
+| | 7 | Support ticket summary |
+| sql/04_customer_experience.sql | 1 | Resolution time and % within SLA by priority |
+| | 2 | Top complaint categories |
+| | 3 | CSAT by resolution-time bucket |
+| | 4 | Repeat complaints (3+ tickets, same category) |
+| | 5 | Feedback sentiment by month |
+| | 6 | Top complaint topics |
+| | 7 | At-risk customer tiers |

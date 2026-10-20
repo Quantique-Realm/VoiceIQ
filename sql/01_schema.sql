@@ -100,12 +100,12 @@ CREATE INDEX idx_surveys_survey_date ON surveys(survey_date);
 CREATE INDEX idx_feedback_customer_id ON feedback(customer_id);
 CREATE INDEX idx_feedback_created_at  ON feedback(created_at);
 CREATE INDEX idx_feedback_channel     ON feedback(feedback_channel);
-CREATE INDEX idx_feedback_topic       ON feedback(topic_label) WHERE topic_label IS NOT NULL;
+CREATE INDEX idx_feedback_topic       ON feedback(topic_label);
 
 CREATE INDEX idx_tickets_customer_id ON support_tickets(customer_id);
 CREATE INDEX idx_tickets_created_at  ON support_tickets(ticket_created_at);
 CREATE INDEX idx_tickets_category    ON support_tickets(category);
 CREATE INDEX idx_tickets_priority    ON support_tickets(priority);
-CREATE INDEX idx_tickets_open        ON support_tickets(status) WHERE status IN ('Open', 'In Progress');
+CREATE INDEX idx_tickets_status      ON support_tickets(status);
 
 COMMIT;

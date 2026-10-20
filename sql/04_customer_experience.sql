@@ -1,156 +1,127 @@
--- Support-operations and CX deep-dive views
+-- Support and customer-experience queries
+-- Run in psql:  psql -d voiceiq -f sql/04_customer_experience.sql
+-- Queries 5 and 6 need notebooks/02_sentiment_analysis.ipynb to have run first.
 
 SET search_path TO voiceiq, public;
 
--- 6. Ticket resolution performance
-CREATE OR REPLACE VIEW vw_ticket_resolution_performance AS
-WITH sla_targets (priority, sla_hours) AS (
-    VALUES ('Critical', 8.0), ('High', 24.0), ('Medium', 48.0), ('Low', 96.0)
-)
+-- 1. Resolution time and SLA by priority
+-- SLA targets: Critical 8h, High 24h, Medium 48h, Low 96h
 SELECT
-    t.priority,
-    st.sla_hours,
+    priority,
     COUNT(*) AS total_tickets,
-    COUNT(*) FILTER (WHERE t.resolution_time IS NOT NULL) AS resolved_tickets,
-    ROUND(AVG(t.resolution_time)::numeric, 1) AS avg_resolution_hours,
-    ROUND(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY t.resolution_time)::numeric, 1) AS median_resolution_hours,
-    ROUND(100.0 * COUNT(*) FILTER (WHERE t.resolution_time <= st.sla_hours)
-                / NULLIF(COUNT(*) FILTER (WHERE t.resolution_time IS NOT NULL), 0), 1) AS sla_attainment_pct,
-    RANK() OVER (ORDER BY AVG(t.resolution_time) DESC) AS slowest_priority_rank
-FROM support_tickets t
-JOIN sla_targets st ON st.priority = t.priority
-GROUP BY t.priority, st.sla_hours
+    COUNT(resolution_time) AS resolved_tickets,   -- COUNT(column) skips NULLs
+    ROUND(AVG(resolution_time), 1) AS avg_resolution_hours,
+    ROUND(100.0 * SUM(CASE
+                        WHEN priority = 'Critical' AND resolution_time <= 8  THEN 1
+                        WHEN priority = 'High'     AND resolution_time <= 24 THEN 1
+                        WHEN priority = 'Medium'   AND resolution_time <= 48 THEN 1
+                        WHEN priority = 'Low'      AND resolution_time <= 96 THEN 1
+                        ELSE 0
+                      END) / COUNT(resolution_time), 1) AS within_sla_pct
+FROM support_tickets
+GROUP BY priority
 ORDER BY avg_resolution_hours DESC;
 
--- 7. Top complaint categories
-CREATE OR REPLACE VIEW vw_top_complaint_categories AS
-WITH category_stats AS (
-    SELECT
-        category,
-        COUNT(*) AS ticket_count,
-        ROUND(100.0 * COUNT(*) / SUM(COUNT(*)) OVER (), 1) AS pct_of_all_tickets,
-        ROUND(AVG(resolution_time)::numeric, 1) AS avg_resolution_hours,
-        ROUND(AVG(csat_rating)::numeric, 2) AS avg_csat_rating,
-        COUNT(*) FILTER (WHERE priority IN ('Critical', 'High')) AS high_severity_count
-    FROM support_tickets
-    GROUP BY category
-)
+-- 2. Top complaint categories
 SELECT
     category,
-    ticket_count,
-    pct_of_all_tickets,
-    avg_resolution_hours,
-    avg_csat_rating,
-    high_severity_count,
-    RANK() OVER (ORDER BY ticket_count DESC)      AS volume_rank,
-    RANK() OVER (ORDER BY avg_csat_rating ASC)    AS worst_csat_rank
-FROM category_stats
-ORDER BY ticket_count DESC;
+    COUNT(*) AS tickets,
+    ROUND(100.0 * COUNT(*) / (SELECT COUNT(*) FROM support_tickets), 1) AS pct_of_tickets,
+    ROUND(AVG(resolution_time), 1) AS avg_resolution_hours,
+    ROUND(AVG(csat_rating), 2) AS avg_csat
+FROM support_tickets
+GROUP BY category
+ORDER BY tickets DESC;
 
--- 8. Repeat complaint analysis
-CREATE OR REPLACE VIEW vw_repeat_complaints AS
-WITH ticket_sequence AS (
-    SELECT
-        customer_id,
-        category,
-        ticket_created_at,
-        COUNT(*) OVER (PARTITION BY customer_id, category) AS tickets_in_category
-    FROM support_tickets
-)
+-- 3. Does slow resolution lower satisfaction? CSAT by resolution-time bucket
+SELECT
+    CASE
+        WHEN resolution_time < 8  THEN '1: under 8h'
+        WHEN resolution_time < 24 THEN '2: 8-24h'
+        WHEN resolution_time < 48 THEN '3: 24-48h'
+        WHEN resolution_time < 96 THEN '4: 48-96h'
+        ELSE '5: over 96h'
+    END AS resolution_bucket,
+    COUNT(*) AS tickets,
+    ROUND(AVG(csat_rating), 2) AS avg_csat
+FROM support_tickets
+WHERE resolution_time IS NOT NULL
+GROUP BY resolution_bucket
+ORDER BY resolution_bucket;
+
+-- 4. Customers with repeat complaints (3+ tickets in the same category)
 SELECT
     customer_id,
     category,
-    tickets_in_category,
-    MIN(ticket_created_at) AS first_ticket_date,
-    MAX(ticket_created_at) AS latest_ticket_date,
-    CASE
-        WHEN tickets_in_category >= 3 THEN 'Chronic'
-        WHEN tickets_in_category = 2 THEN 'Repeat'
-        ELSE 'One-time'
-    END AS complaint_pattern
-FROM ticket_sequence
-GROUP BY customer_id, category, tickets_in_category
-HAVING tickets_in_category >= 2
-ORDER BY tickets_in_category DESC, latest_ticket_date DESC;
+    COUNT(*) AS tickets
+FROM support_tickets
+GROUP BY customer_id, category
+HAVING COUNT(*) >= 3
+ORDER BY tickets DESC;
 
--- 9. Sentiment trend over time (populated by notebooks/02_sentiment_analysis.ipynb)
-CREATE OR REPLACE VIEW vw_sentiment_trend AS
-WITH monthly_sentiment AS (
-    SELECT
-        DATE_TRUNC('month', created_at)::date AS feedback_month,
-        COUNT(*) AS feedback_count,
-        COUNT(*) FILTER (WHERE sentiment_label = 'Positive') AS positive_count,
-        COUNT(*) FILTER (WHERE sentiment_label = 'Negative') AS negative_count,
-        ROUND(AVG(sentiment_score)::numeric, 3) AS avg_sentiment_score
-    FROM feedback
-    GROUP BY 1
-)
+-- 5. Feedback sentiment by month
 SELECT
-    feedback_month,
-    feedback_count,
-    positive_count,
-    negative_count,
-    avg_sentiment_score,
-    ROUND(AVG(avg_sentiment_score) OVER (
-        ORDER BY feedback_month ROWS BETWEEN 2 PRECEDING AND CURRENT ROW
-    ), 3) AS sentiment_3mo_moving_avg,
-    avg_sentiment_score - LAG(avg_sentiment_score) OVER (ORDER BY feedback_month) AS sentiment_mom_change
-FROM monthly_sentiment
-ORDER BY feedback_month;
+    DATE_TRUNC('month', created_at)::date AS month,
+    COUNT(*) AS feedback_count,
+    ROUND(100.0 * SUM(CASE WHEN sentiment_label = 'Negative' THEN 1 ELSE 0 END) / COUNT(*), 1) AS negative_pct,
+    ROUND(AVG(sentiment_score), 3) AS avg_sentiment
+FROM feedback
+GROUP BY DATE_TRUNC('month', created_at)
+ORDER BY month;
 
--- 10. At-risk customer identification
-CREATE OR REPLACE VIEW vw_at_risk_customers AS
-WITH survey_trend AS (
-    SELECT
-        customer_id,
-        nps_score,
-        LAG(nps_score) OVER (PARTITION BY customer_id ORDER BY survey_date) AS prev_nps_score,
-        ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY survey_date DESC) AS rn
-    FROM surveys
-),
-latest_survey AS (
-    SELECT
-        customer_id,
-        nps_score AS latest_nps,
-        nps_score - COALESCE(prev_nps_score, nps_score) AS nps_delta
-    FROM survey_trend
-    WHERE rn = 1
+-- 6. Top complaint topics in negative feedback
+SELECT
+    topic_label,
+    COUNT(*) AS feedback_count,
+    ROUND(100.0 * COUNT(*) / (SELECT COUNT(*) FROM feedback WHERE topic_label IS NOT NULL), 1) AS pct
+FROM feedback
+WHERE topic_label IS NOT NULL
+GROUP BY topic_label
+ORDER BY feedback_count DESC;
+
+-- 7. At-risk customers (active customers only)
+-- High Risk   = unhappy (latest NPS 0-6) AND a Critical/High ticket in the last 90 days
+-- Medium Risk = unhappy OR 2+ Critical/High tickets in the last 90 days
+-- Watch       = Passive (latest NPS 7-8)
+-- The data ends on 2025-06-30, so "last 90 days" counts back from that date.
+WITH latest_survey AS (
+    SELECT s.customer_id, s.nps_score
+    FROM surveys s
+    JOIN (SELECT customer_id, MAX(survey_date) AS last_date
+          FROM surveys
+          GROUP BY customer_id) last
+      ON last.customer_id = s.customer_id AND last.last_date = s.survey_date
 ),
 recent_tickets AS (
     SELECT
         customer_id,
-        COUNT(*) AS tickets_last_90d,
-        COUNT(*) FILTER (WHERE priority IN ('Critical', 'High')) AS high_severity_last_90d,
-        ROUND(AVG(csat_rating)::numeric, 2) AS avg_recent_csat
+        SUM(CASE WHEN priority IN ('Critical', 'High') THEN 1 ELSE 0 END) AS high_severity_tickets
     FROM support_tickets
-    WHERE ticket_created_at >= (SELECT MAX(ticket_created_at) FROM support_tickets) - INTERVAL '90 days'
+    WHERE ticket_created_at >= DATE '2025-06-30' - INTERVAL '90 days'
     GROUP BY customer_id
+),
+customer_risk AS (
+    SELECT
+        c.customer_id,
+        c.customer_segment,
+        c.subscription_plan,
+        ls.nps_score AS latest_nps,
+        COALESCE(rt.high_severity_tickets, 0) AS high_severity_tickets,
+        CASE
+            WHEN ls.nps_score <= 6 AND COALESCE(rt.high_severity_tickets, 0) >= 1 THEN 'High Risk'
+            WHEN ls.nps_score <= 6 OR  COALESCE(rt.high_severity_tickets, 0) >= 2 THEN 'Medium Risk'
+            WHEN ls.nps_score <= 8 THEN 'Watch'
+            ELSE 'Healthy'
+        END AS risk_tier
+    FROM customers c
+    LEFT JOIN latest_survey ls  ON ls.customer_id = c.customer_id
+    LEFT JOIN recent_tickets rt ON rt.customer_id = c.customer_id
+    WHERE c.is_churned = FALSE
 )
-SELECT
-    c.customer_id,
-    c.customer_segment,
-    c.subscription_plan,
-    c.tenure_months,
-    ls.latest_nps,
-    ls.nps_delta,
-    COALESCE(rt.tickets_last_90d, 0) AS tickets_last_90d,
-    COALESCE(rt.high_severity_last_90d, 0) AS high_severity_last_90d,
-    rt.avg_recent_csat,
-    CASE
-        WHEN ls.latest_nps <= 6 AND COALESCE(rt.high_severity_last_90d, 0) >= 1 THEN 'High Risk'
-        WHEN ls.latest_nps <= 6 OR ls.nps_delta <= -3 OR COALESCE(rt.high_severity_last_90d, 0) >= 2 THEN 'Medium Risk'
-        WHEN ls.latest_nps <= 8 THEN 'Watch'
-        ELSE 'Healthy'
-    END AS risk_tier
-FROM customers c
-LEFT JOIN latest_survey ls ON ls.customer_id = c.customer_id
-LEFT JOIN recent_tickets rt ON rt.customer_id = c.customer_id
-WHERE NOT c.is_churned
-ORDER BY
-    CASE
-        WHEN ls.latest_nps <= 6 AND COALESCE(rt.high_severity_last_90d, 0) >= 1 THEN 1
-        WHEN ls.latest_nps <= 6 OR ls.nps_delta <= -3 OR COALESCE(rt.high_severity_last_90d, 0) >= 2 THEN 2
-        WHEN ls.latest_nps <= 8 THEN 3
-        ELSE 4
-    END,
-    ls.latest_nps ASC NULLS LAST;
+SELECT risk_tier, COUNT(*) AS customers
+FROM customer_risk
+GROUP BY risk_tier
+ORDER BY customers;
+
+-- To get the call list instead of the counts, replace the last SELECT with:
+--   SELECT * FROM customer_risk WHERE risk_tier = 'High Risk' ORDER BY latest_nps;

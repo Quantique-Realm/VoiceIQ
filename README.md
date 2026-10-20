@@ -3,13 +3,10 @@
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-336791?logo=postgresql&logoColor=white)
 ![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
 ![scikit--learn](https://img.shields.io/badge/scikit--learn-F7931E?logo=scikitlearn&logoColor=white)
-![Power BI](https://img.shields.io/badge/Power%20BI-F2C811?logo=powerbi&logoColor=black)
-![Status](https://img.shields.io/badge/status-8%2F10%20modules-blue)
 
 A Qualtrics-inspired Customer Experience & Feedback Intelligence platform for
 a B2B SaaS company: NPS/CSAT surveys, support tickets, and product feedback
-consolidated into a PostgreSQL warehouse, analyzed with SQL + Python, and
-surfaced through an executive dashboard.
+consolidated into a PostgreSQL warehouse and analyzed with SQL + Python.
 
 ## Business problem
 
@@ -17,16 +14,7 @@ Leadership needs one place to answer: why are customers dissatisfied, which
 issues drive the most complaints, what drives high NPS, which segments are
 at churn risk, and how is sentiment trending. This project builds that
 analytics layer end to end — warehouse, SQL analytics, EDA, sentiment/topic
-NLP, a predictive model, and a dashboard.
-
-## Dashboard preview
-
-4-page executive dashboard, built from live warehouse data:
-[`powerbi/dashboard_preview.html`](powerbi/dashboard_preview.html) (open
-locally) or the [hosted version](https://claude.ai/artifact/GDLtiLDGnVrF1rrNhksq5N)
-(private — share it from claude.ai first if linking elsewhere). Power BI
-Desktop is Windows-only, so this HTML replica stands in for the `.pbix`;
-the full build spec is in [`docs/powerbi_spec.md`](docs/powerbi_spec.md).
+NLP, and a predictive model.
 
 ## Architecture
 
@@ -34,10 +22,8 @@ the full build spec is in [`docs/powerbi_spec.md`](docs/powerbi_spec.md).
 flowchart LR
     A[3 public Kaggle datasets] --> B[Python cleaning +\nentity reconciliation]
     B --> C[(PostgreSQL warehouse)]
-    C --> D[SQL analytics\n10 views]
-    D --> E[Python EDA,\nNLP, ML]
-    D --> F[Dashboard]
-    E --> F
+    C --> D[SQL analysis\nqueries]
+    C --> E[Python EDA,\nNLP, ML]
 ```
 
 Full lineage, dataset sources, and every derived/modeled field are
@@ -53,8 +39,8 @@ schema: [`sql/01_schema.sql`](sql/01_schema.sql). Field-by-field reference:
 
 ## Tech stack
 
-PostgreSQL · SQL (CTEs, window functions, generated columns) · Python
-(Pandas, NumPy, Scikit-learn, NLTK) · Power BI
+PostgreSQL · SQL (JOINs, GROUP BY, CASE, HAVING, CTEs) · Python
+(Pandas, NumPy, Matplotlib, Scikit-learn, NLTK)
 
 ## KPIs
 
@@ -69,11 +55,10 @@ Attainment, Sentiment Score, At-Risk Tier — defined in
 | 1 | Dataset selection & architecture | [`docs/architecture.md`](docs/architecture.md) |
 | 2 | PostgreSQL schema | [`sql/01_schema.sql`](sql/01_schema.sql) |
 | 3 | Data loading & entity reconciliation | [`notebooks/01_data_cleaning.ipynb`](notebooks/01_data_cleaning.ipynb) |
-| 4 | SQL analytics (10 views) | [`sql/03_kpis.sql`](sql/03_kpis.sql), [`sql/04_customer_experience.sql`](sql/04_customer_experience.sql) |
+| 4 | SQL analysis queries | [`sql/03_kpis.sql`](sql/03_kpis.sql), [`sql/04_customer_experience.sql`](sql/04_customer_experience.sql) |
 | 5 | Python EDA | [`notebooks/03_customer_insights.ipynb`](notebooks/03_customer_insights.ipynb) |
-| 6 | Sentiment analysis + topic extraction | [`notebooks/02_sentiment_analysis.ipynb`](notebooks/02_sentiment_analysis.ipynb) |
-| 7 | Predictive model (logistic regression) | `notebooks/03_customer_insights.ipynb` (Module 7 section) |
-| 8 | Dashboard | [`docs/powerbi_spec.md`](docs/powerbi_spec.md), [`powerbi/dashboard_preview.html`](powerbi/dashboard_preview.html) |
+| 6 | Sentiment analysis + complaint topics | [`notebooks/02_sentiment_analysis.ipynb`](notebooks/02_sentiment_analysis.ipynb) |
+| 7 | Predictive model (logistic regression) | `notebooks/03_customer_insights.ipynb` (section 6) |
 
 ## SQL highlights
 
@@ -86,29 +71,30 @@ nps_category VARCHAR(10) GENERATED ALWAYS AS (
 ) STORED
 ```
 
-Fan-out-safe multi-fact aggregation (`sql/03_kpis.sql`) — each fact table is
-aggregated to the target grain in its own CTE before joining, avoiding the
-classic bug where joining two fact tables directly to a shared dimension
-silently multiplies rows:
+NPS = % Promoters − % Detractors, with `CASE` (`sql/03_kpis.sql`):
 ```sql
-WITH survey_agg AS (SELECT customer_segment, AVG(nps_score) ... GROUP BY 1),
-     ticket_agg AS (SELECT customer_segment, AVG(resolution_time) ... GROUP BY 1)
-SELECT * FROM survey_agg JOIN ticket_agg USING (customer_segment)
+ROUND(100.0 * (SUM(CASE WHEN nps_category = 'Promoter'  THEN 1 ELSE 0 END)
+             - SUM(CASE WHEN nps_category = 'Detractor' THEN 1 ELSE 0 END)) / COUNT(*), 1) AS nps
 ```
 
-At-risk scoring with `LAG` + `CASE` (`sql/04_customer_experience.sql`):
+At-risk tiers with CTEs + `CASE` (`sql/04_customer_experience.sql`, query 7):
 ```sql
-LAG(nps_score) OVER (PARTITION BY customer_id ORDER BY survey_date) AS prev_nps_score
+CASE
+    WHEN ls.nps_score <= 6 AND COALESCE(rt.high_severity_tickets, 0) >= 1 THEN 'High Risk'
+    WHEN ls.nps_score <= 6 OR  COALESCE(rt.high_severity_tickets, 0) >= 2 THEN 'Medium Risk'
+    WHEN ls.nps_score <= 8 THEN 'Watch'
+    ELSE 'Healthy'
+END AS risk_tier
 ```
 
 ## Business insights & recommendations
 
 Full report: [`docs/business_report.md`](docs/business_report.md). Headline:
-NPS declined from 39 to 19 over two years, driven primarily by slow
-resolution of Critical/High-severity tickets (the strongest predictor of
-becoming a Detractor) — not broad product dissatisfaction. 104 active
-customers are High Risk today via `vw_at_risk_customers`, a ready-to-use
-retention list.
+NPS fell from about 38 to 20 over two years while feedback sentiment stayed
+flat — the decline traces to support (Critical/High tickets, slow resolution)
+and to Starter-plan customers, not to how people talk about the product.
+114 active customers are High Risk today (`sql/04_customer_experience.sql`,
+query 7), a ready-to-use retention call list.
 
 ## Local setup
 
