@@ -55,7 +55,8 @@ PostgreSQL, SQL, Python (Pandas, NumPy, Matplotlib, Scikit-learn, NLTK)
 
 ## How to run
 
-1. Download the three datasets into `data/raw/`.
+1. Download the three datasets into `data/raw/` and name them
+   `telco_customer_churn.csv`, `support_tickets_raw.csv` and `playstore_user_reviews.csv`.
 2. Run `notebooks/01_data_cleaning.ipynb` to create the clean CSVs.
 3. Create the database and load the data:
    ```
